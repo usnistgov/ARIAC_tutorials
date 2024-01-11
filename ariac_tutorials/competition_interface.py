@@ -21,6 +21,15 @@ from geometry_msgs.msg import PoseStamped, Pose, Point, TransformStamped
 from shape_msgs.msg import Mesh, MeshTriangle
 from moveit_msgs.msg import CollisionObject, AttachedCollisionObject, PlanningScene
 from std_msgs.msg import Header
+## ANI
+from sensor_msgs.msg import Image as ImageMsg
+from cv_bridge import CvBridge, CvBridgeError
+import cv2
+from imutils.object_detection import non_max_suppression
+# from part_detector_msgs.msg import PartDetector as PartDetectorMsg
+import numpy as np
+
+
 
 from moveit.core.robot_trajectory import RobotTrajectory
 from moveit.core.robot_state import RobotState, robotStateToRobotStateMsg
@@ -201,6 +210,17 @@ class CompetitionInterface(Node):
         # Store each camera image as an AdvancedLogicalCameraImage object
         self._camera_image: AdvancedLogicalCameraImage = None
 
+
+        ## ANI
+        # cv_bridge interface
+        self._bridge = CvBridge()
+        
+        # Store RGB images from the right bins camera so they can be 
+        # used for part detection
+        self._right_bins_camera_image = None
+        self._left_bins_camera_image = None
+
+
         # Subscriber to the order topic
         self.orders_sub = self.create_subscription(
             OrderMsg,
@@ -298,6 +318,23 @@ class CompetitionInterface(Node):
                                                          self._kts2_camera_cb,
                                                          qos_profile_sensor_data,
                                                          callback_group=self.moveit_cb_group)
+        # RGB camera subs
+        self.right_bins_RGB_camera_sub = self.create_subscription(ImageMsg,
+                                                                  "/ariac/sensors/right_bins_camera/rgb_image",
+                                                                  self._right_bins_RGB_camera_cb,
+                                                                  qos_profile_sensor_data,
+                                                                  # callback group,
+                                                                  )
+        self.left_bins_RGB_camera_sub = self.create_subscription(ImageMsg,
+                                                                  "/ariac/sensors/left_bins_camera/rgb_image",
+                                                                  self._left_bins_RGB_camera_cb,
+                                                                  qos_profile_sensor_data,
+                                                                  # callback group,
+                                                                  )
+        # test publisher
+        self.test_pub = self.create_publisher(ImageMsg,
+                                              "/test_image",
+                                              qos_profile_sensor_data)
         
         # AGV status subs
         self._agv_locations = {i+1:-1 for i in range(4)}
@@ -1055,6 +1092,191 @@ class CompetitionInterface(Node):
         self._kts2_trays = msg.tray_poses
         self._kts2_camera_pose = msg.sensor_pose
     
+
+    ## ANI
+    def _left_bins_RGB_camera_cb(self, msg: ImageMsg):
+        # collect camera image
+        try:
+            self._left_bins_camera_image = self._bridge.imgmsg_to_cv2(msg, "bgr8")
+        except CvBridgeError as e:
+            print(e)
+        # self._left_bins_camera_image = self._bridge.imgmsg_to_cv2(msg, "bgr8")
+
+    def _right_bins_RGB_camera_cb(self, msg: ImageMsg):
+        # collect camera image
+        try:
+            self._right_bins_camera_image = self._bridge.imgmsg_to_cv2(msg, "bgr8")
+        except CvBridgeError as e:
+            print(e)
+        # self._right_bins_camera_image = self._bridge.imgmsg_to_cv2(msg, "bgr8")
+            
+    def get_bin_parts(self, bin_number: int):
+        if bin_number < 4:
+            cv_img = self._left_bins_camera_image
+        else:
+            cv_img = self._right_bins_camera_image
+
+        imgH, imgW = self.cv_img.shape[:2]
+        
+        # roi based on bin number
+        if bin_number == 1 or bin_number == 6:
+            # bottom left
+            cv_img = cv_img[imgH//2:, imgW//2:]
+        if bin_number == 2 or bin_number == 5:
+            # bottom right
+            cv_img = cv_img[imgH//2:, :imgW//2]
+        if bin_number == 3 or bin_number == 8:
+            # top left
+            cv_img = cv_img[:imgH//2, :imgW//2]
+        if bin_number == 4 or bin_number == 7:
+            # top right
+            cv_img = cv_img[:imgH//2, imgW//2:]
+
+
+        # img_out = self._bridge.cv2_to_imgmsg(cv_img)
+        # self.test_pub.publish(img_out)
+        cv2.imshow("get_bin_parts", cv_img)
+        cv2.waitKey(100)
+
+        # image_coordinates = self.find_parts(cv_image)
+        # self.find_parts(cv_img)
+
+        # transform and publish found parts to a topic
+        # self.publish_part_poses(cv_img)
+
+    # def find_parts(self, img):
+    #     '''
+    #     image processing
+    #     ''' 
+    #     # hsv masking
+    #     imgHSV = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+
+    #     for color in self.part_poses.keys():
+    #         for type in self.part_poses[color].keys():
+
+    #             # colour filtering
+    #             imgMask = cv2.inRange(imgHSV, 
+    #                                 self.colorBound(color, "lower"), 
+    #                                 self.colorBound(color, "upper"))
+
+    #             # template matching
+    #             self.matchTemplate(imgMask, color, type)
+
+    #             # display bounding boxes
+    #             if len(self.part_poses[color][type]):
+    #                 # sx, sy -> top left corner
+    #                 # ex, ey -> bottom right corner
+    #                 for (sx, sy, ex, ey) in self.part_poses[color][type]:
+    #                     cv2.rectangle(img, (sx, sy), (ex, ey), self.colors[color], 3)
+    
+    # def matchTemplate(self, imgMask, color, type):
+    #     # template matching
+    #     if type == "pump":
+    #         tH, tW = self.pump_template.shape#[:2]
+    #         matchField = cv2.matchTemplate(imgMask, self.pump_template, cv2.TM_CCOEFF_NORMED)
+    #     elif type == "battery":
+    #         tH, tW = self.battery_template.shape#[:2]
+    #         matchField = cv2.matchTemplate(imgMask, self.battery_template, cv2.TM_CCOEFF_NORMED)
+    #     elif type == "sensor":
+    #         tH, tW = self.sensor_template.shape#[:2]
+    #         matchField = cv2.matchTemplate(imgMask, self.sensor_template, cv2.TM_CCOEFF_NORMED)
+    #     elif type == "regulator":
+    #         tH, tW = self.regulator_template.shape#[:2]
+    #         matchField = cv2.matchTemplate(imgMask, self.regulator_template, cv2.TM_CCOEFF_NORMED)
+
+    #     # match many
+    #     (yy, xx) = np.where(matchField >= 0.90)
+
+    #     raw_matches = []
+    #     for (x, y) in zip(xx, yy):
+    #         raw_matches.append((x, y, x+tW, y+tH))
+
+    #     # non-max suppression
+    #     refined_matches = []
+    #     refined_matches = non_max_suppression(np.array(raw_matches))
+
+    #     self.part_poses[color][type] = refined_matches
+
+
+
+    # def publish_part_poses(self, img):
+    #     # transform
+    #     # 1. make output message structure
+
+    #     msgOut = PartDetectorMsg()
+
+    #     for color, parts in self.part_poses.items():
+    #         for type, part_list in parts.items():
+    #             if type == "pump":
+    #                 tH, tW = self.pump_template.shape
+    #             elif type == "battery":
+    #                 tH, tW = self.battery_template.shape
+    #             elif type == "sensor":
+    #                 tH, tW = self.sensor_template.shape
+    #             elif type == "regulator":
+    #                 tH, tW = self.regulator_template.shape
+                
+
+    #             # changing part image coordinage to 3d coordinate
+    #             # for part_ic in part_list:
+    #             # find part center
+
+
+    #             # image (y) height = 480px
+    #             # image (x) width  = 640px
+                
+    #             # camera fov height = 1.4101928m
+    #             # camera fov width  = 1.8771005m
+
+    #             for sx, sy, _, _ in part_list:
+    #                 p = PartPose()
+    #                 p.part.color = self.colorType[color]
+    #                 p.part.type = self.colorType[type]
+    #                 p.pose.position.x = 0.0 # distance from camera to center of part on bin
+    #                 p.pose.position.y = ((-(sx + tW // 2) + 320) / 640) * 1.8771005 # image x coordinate mapped to simulation distances
+    #                 p.pose.position.z = ((-(sy + tH // 2) + 240) / 480) * 1.4101928 # image y coordinate mapped to simulation distances
+    #                 p.pose.orientation.x = 0.0 # nope
+    #                 p.pose.orientation.y = 0.0 # nope
+    #                 p.pose.orientation.z = 0.0 # nope
+    #                 p.pose.orientation.w = 1.0 # constant
+    #                 msgOut.part_poses.append(p)
+
+    #     self._left_bins_rgb_camera_publisher.publish(msgOut)
+
+    # # Helper functions
+    # def colorBound(self, color, bound):
+    #     if bound == "lower":
+    #         return np.array([self.HSVcolors[color]["hmin"],
+    #                         self.HSVcolors[color]["smin"],
+    #                         self.HSVcolors[color]["vmin"]])
+    #     # elif bound == "upper":
+    #     return np.array([self.HSVcolors[color]["hmax"],
+    #                     self.HSVcolors[color]["smax"],
+    #                     self.HSVcolors[color]["vmax"]])
+
+    # def load_part_templates(self):
+    #     self.sensor_template = cv2.imread(
+    #         "install/part_detector/share/part_detector/part_detector_assets/sensor.png", cv2.IMREAD_GRAYSCALE)
+    #     self.regulator_template = cv2.imread(
+    #         "install/part_detector/share/part_detector/part_detector_assets/regulator.png", cv2.IMREAD_GRAYSCALE)
+    #     self.battery_template = cv2.imread(
+    #         "install/part_detector/share/part_detector/part_detector_assets/battery.png", cv2.IMREAD_GRAYSCALE)
+    #     self.pump_template = cv2.imread(
+    #         "install/part_detector/share/part_detector/part_detector_assets/pump.png", cv2.IMREAD_GRAYSCALE)
+
+    #     if (not self.sensor_template.shape[0] > 0) or \
+    #     (not self.regulator_template.shape[0] > 0) or \
+    #     (not self.battery_template.shape[0] > 0) or \
+    #     (not self.pump_template.shape[0] > 0):
+    #         return False
+    #     return True
+
+    def get_tray_ids(self, tray_table_number):
+        pass
+
+    ## ANI
+
+    
     def _agv1_status_cb(self, msg : AGVStatusMsg):
         self._agv_locations[1] = msg.location
     
@@ -1546,3 +1768,17 @@ class CompetitionInterface(Node):
             self._floor_robot.set_goal_state(motion_plan_constraints=[joint_constraint])
         self.get_logger().info("Out of with statement")
         self._plan_and_execute(self._ariac_robots,self._floor_robot, self.get_logger(), robot_type="floor_robot")
+
+
+
+
+
+# rgb_camera_cb()
+        
+# get_bin_parts(bin#)
+        
+# m_rgb_image
+# m_rgb_camera_subscriber
+        
+# m_kit_station_camera_subscriber
+# kit_station_camera_cb()
