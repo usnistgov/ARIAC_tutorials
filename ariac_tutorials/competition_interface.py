@@ -162,7 +162,7 @@ class CompetitionInterface(Node):
                        "left_bins":3,
                        "right_bins":-3}
 
-    def __init__(self):
+    def __init__(self, enable_moveit = True):
         super().__init__('competition_interface')
 
         sim_time = Parameter(
@@ -248,110 +248,112 @@ class CompetitionInterface(Node):
         self._ceiling_robot_gripper_state = VacuumGripperState()
 
         # Moveit_py variables
-        self._ariac_robots = MoveItPy(node_name="ariac_robots_moveit_py")
-        self._ariac_robots_state = RobotState(self._ariac_robots.get_robot_model())
+        self.moveit_enabled = enable_moveit
+        if self.moveit_enabled:
+            self._ariac_robots = MoveItPy(node_name="ariac_robots_moveit_py")
+            self._ariac_robots_state = RobotState(self._ariac_robots.get_robot_model())
 
-        self._floor_robot = self._ariac_robots.get_planning_component("floor_robot")
-        self._ceiling_robot = self._ariac_robots.get_planning_component("ceiling_robot")
+            self._floor_robot = self._ariac_robots.get_planning_component("floor_robot")
+            self._ceiling_robot = self._ariac_robots.get_planning_component("ceiling_robot")
 
-        self._floor_robot_home_quaternion = Quaternion()
-        self._ceiling_robot_home_quaternion = Quaternion()
+            self._floor_robot_home_quaternion = Quaternion()
+            self._ceiling_robot_home_quaternion = Quaternion()
 
-        self._planning_scene_monitor = self._ariac_robots.get_planning_scene_monitor()
+            self._planning_scene_monitor = self._ariac_robots.get_planning_scene_monitor()
 
-        self._world_collision_objects = []
+            self._world_collision_objects = []
 
-        # Parts found in the bins
-        self._left_bins_parts = []
-        self._right_bins_parts = []
-        self._left_bins_camera_pose = Pose()
-        self._right_bins_camera_pose = Pose()
+            # Parts found in the bins
+            self._left_bins_parts = []
+            self._right_bins_parts = []
+            self._left_bins_camera_pose = Pose()
+            self._right_bins_camera_pose = Pose()
 
-        # Tray information
-        self._kts1_trays = []
-        self._kts2_trays = []
-        self._kts1_camera_pose = Pose()
-        self._kts2_camera_pose = Pose()
+            # Tray information
+            self._kts1_trays = []
+            self._kts2_trays = []
+            self._kts1_camera_pose = Pose()
+            self._kts2_camera_pose = Pose()
 
-        # service clients
-        self.get_cartesian_path_client = self.create_client(GetCartesianPath, "compute_cartesian_path")
-        self.get_position_fk_client = self.create_client(GetPositionFK, "compute_fk")
+            # service clients
+            self.get_cartesian_path_client = self.create_client(GetCartesianPath, "compute_cartesian_path")
+            self.get_position_fk_client = self.create_client(GetPositionFK, "compute_fk")
 
-        # Camera subs
-        self.left_bins_camera_sub = self.create_subscription(AdvancedLogicalCameraImageMsg,
-                                                             "/ariac/sensors/left_bins_camera/image",
-                                                             self._left_bins_camera_cb,
-                                                             qos_profile_sensor_data,
-                                                             callback_group=self.moveit_cb_group)
-        self.right_bins_camera_sub = self.create_subscription(AdvancedLogicalCameraImageMsg,
-                                                             "/ariac/sensors/right_bins_camera/image",
-                                                             self._right_bins_camera_cb,
-                                                             qos_profile_sensor_data,
-                                                             callback_group=self.moveit_cb_group)
-        self.kts1_camera_sub_ = self.create_subscription(AdvancedLogicalCameraImageMsg,
-                                                         "/ariac/sensors/kts1_camera/image",
-                                                         self._kts1_camera_cb,
-                                                         qos_profile_sensor_data,
-                                                             callback_group=self.moveit_cb_group)
-        self.kts2_camera_sub_ = self.create_subscription(AdvancedLogicalCameraImageMsg,
-                                                         "/ariac/sensors/kts2_camera/image",
-                                                         self._kts2_camera_cb,
-                                                         qos_profile_sensor_data,
-                                                         callback_group=self.moveit_cb_group)
-        
-        # AGV status subs
-        self._agv_locations = {i+1:-1 for i in range(4)}
-        
-        self.agv1_status_sub = self.create_subscription(AGVStatusMsg,
-                                                        "/ariac/agv1_status",
-                                                        self._agv1_status_cb,
-                                                        10,
-                                                        callback_group=self.moveit_cb_group)
-        self.agv2_status_sub = self.create_subscription(AGVStatusMsg,
-                                                        "/ariac/agv2_status",
-                                                        self._agv2_status_cb,
-                                                        10,
-                                                        callback_group=self.moveit_cb_group)
-        self.agv3_status_sub = self.create_subscription(AGVStatusMsg,
-                                                        "/ariac/agv3_status",
-                                                        self._agv3_status_cb,
-                                                        10,
-                                                        callback_group=self.moveit_cb_group)
-        self.agv4_status_sub = self.create_subscription(AGVStatusMsg,
-                                                        "/ariac/agv4_status",
-                                                        self._agv4_status_cb,
-                                                        10,
-                                                        callback_group=self.moveit_cb_group)
-        
-        # TF
-        self.tf_buffer = Buffer()
-        self.tf_listener = TransformListener(self.tf_buffer, self)
-
-        self.tf_broadcaster = StaticTransformBroadcaster(self)
-
-        self.floor_robot_attached_part_ = PartMsg()
-        self.ceiling_robot_attached_part_ = PartMsg()
-
-        self._change_gripper_client = self.create_client(ChangeGripper, "/ariac/floor_robot_change_gripper")
-        
-        # Planning Scene Info
-        self.planning_scene_sub = self.create_subscription(PlanningScene,
-                                                           "/planning_scene",
-                                                            self.get_planning_scene_msg,
+            # Camera subs
+            self.left_bins_camera_sub = self.create_subscription(AdvancedLogicalCameraImageMsg,
+                                                                "/ariac/sensors/left_bins_camera/image",
+                                                                self._left_bins_camera_cb,
+                                                                qos_profile_sensor_data,
+                                                                callback_group=self.moveit_cb_group)
+            self.right_bins_camera_sub = self.create_subscription(AdvancedLogicalCameraImageMsg,
+                                                                "/ariac/sensors/right_bins_camera/image",
+                                                                self._right_bins_camera_cb,
+                                                                qos_profile_sensor_data,
+                                                                callback_group=self.moveit_cb_group)
+            self.kts1_camera_sub_ = self.create_subscription(AdvancedLogicalCameraImageMsg,
+                                                            "/ariac/sensors/kts1_camera/image",
+                                                            self._kts1_camera_cb,
+                                                            qos_profile_sensor_data,
+                                                                callback_group=self.moveit_cb_group)
+            self.kts2_camera_sub_ = self.create_subscription(AdvancedLogicalCameraImageMsg,
+                                                            "/ariac/sensors/kts2_camera/image",
+                                                            self._kts2_camera_cb,
+                                                            qos_profile_sensor_data,
+                                                            callback_group=self.moveit_cb_group)
+            
+            # AGV status subs
+            self._agv_locations = {i+1:-1 for i in range(4)}
+            
+            self.agv1_status_sub = self.create_subscription(AGVStatusMsg,
+                                                            "/ariac/agv1_status",
+                                                            self._agv1_status_cb,
                                                             10,
                                                             callback_group=self.moveit_cb_group)
-        self.planning_scene_msg = PlanningScene()
+            self.agv2_status_sub = self.create_subscription(AGVStatusMsg,
+                                                            "/ariac/agv2_status",
+                                                            self._agv2_status_cb,
+                                                            10,
+                                                            callback_group=self.moveit_cb_group)
+            self.agv3_status_sub = self.create_subscription(AGVStatusMsg,
+                                                            "/ariac/agv3_status",
+                                                            self._agv3_status_cb,
+                                                            10,
+                                                            callback_group=self.moveit_cb_group)
+            self.agv4_status_sub = self.create_subscription(AGVStatusMsg,
+                                                            "/ariac/agv4_status",
+                                                            self._agv4_status_cb,
+                                                            10,
+                                                            callback_group=self.moveit_cb_group)
+            
+            # TF
+            self.tf_buffer = Buffer()
+            self.tf_listener = TransformListener(self.tf_buffer, self)
 
-        # Meshes file path
-        self.mesh_file_path = get_package_share_directory("test_competitor") + "/meshes/"
+            self.tf_broadcaster = StaticTransformBroadcaster(self)
 
-        
-        self.floor_joint_positions_arrs = {
-            "floor_kts1_js_":[4.0,1.57,-1.57,1.57,-1.57,-1.57,0.0],
-            "floor_kts2_js_":[-4.0,-1.57,-1.57,1.57,-1.57,-1.57,0.0]
-        }
-        self.floor_position_dict = {key:self._create_floor_joint_position_state(self.floor_joint_positions_arrs[key])
-                                      for key in self.floor_joint_positions_arrs.keys()}
+            self.floor_robot_attached_part_ = PartMsg()
+            self.ceiling_robot_attached_part_ = PartMsg()
+
+            self._change_gripper_client = self.create_client(ChangeGripper, "/ariac/floor_robot_change_gripper")
+            
+            # Planning Scene Info
+            self.planning_scene_sub = self.create_subscription(PlanningScene,
+                                                            "/planning_scene",
+                                                                self.get_planning_scene_msg,
+                                                                10,
+                                                                callback_group=self.moveit_cb_group)
+            self.planning_scene_msg = PlanningScene()
+
+            # Meshes file path
+            self.mesh_file_path = get_package_share_directory("test_competitor") + "/meshes/"
+
+            
+            self.floor_joint_positions_arrs = {
+                "floor_kts1_js_":[4.0,1.57,-1.57,1.57,-1.57,-1.57,0.0],
+                "floor_kts2_js_":[-4.0,-1.57,-1.57,1.57,-1.57,-1.57,0.0]
+            }
+            self.floor_position_dict = {key:self._create_floor_joint_position_state(self.floor_joint_positions_arrs[key])
+                                        for key in self.floor_joint_positions_arrs.keys()}
 
     @property
     def orders(self):
@@ -445,7 +447,7 @@ class CompetitionInterface(Node):
             #     rclpy.spin_once(self)
             # except KeyboardInterrupt:
             #     return
-            pass
+            self.wait(0.2)
 
         self.get_logger().info('Competition is ready. Starting...')
 
@@ -1083,6 +1085,9 @@ class CompetitionInterface(Node):
                 self.get_logger().error("Unable to pick up part")
 
     def floor_robot_pick_bin_part(self,part_to_pick : PartMsg):
+        if not self.moveit_enabled:
+            self.get_logger().error("Moveit_py is not enabled, unable to pick bin part")
+            return
         part_pose = Pose()
         found_part = False
         bin_side = ""
@@ -1142,7 +1147,9 @@ class CompetitionInterface(Node):
         self.get_logger().info("After move up")
     
     def complete_orders(self):
-        
+        if not self.moveit_enabled:
+            self.get_logger().error("Moveit_py is not enabled, unable to complete orders")
+            return
         while len(self._orders) == 0:
             self.get_logger().info("No orders have been recieved yet", throttle_duration_sec=5.0)
 
@@ -1170,21 +1177,18 @@ class CompetitionInterface(Node):
             kitting_agv_num = -1
 
             if self.current_order.order_type == OrderMsg.KITTING:
-                self.complete_kitting_order(self.current_order.order_task)
+                self._complete_kitting_order(self.current_order.order_task)
                 kitting_agv_num = self.current_order.order_task.agv_number
                 agv_location = -1
                 # while agv_location !=AGVStatusMsg.WAREHOUSE:
                 #     agv_location = self._agv_locations[kitting_agv_num]
-            elif self.current_order.order_type == OrderMsg.ASSEMBLY:
-                self.complete_assembly_order(self.current_order.order_task)
+                self.submit_order(self.current_order.order_id)
             else:
-                self.complete_combined_order(self.current_order.order_task)
-            
-            self.submit_order(self.current_order.order_id)
+                self.get_logger().info("This tutorial is only able to complete kitting orders")  
         return success
 
-    def complete_kitting_order(self, kitting_task:KittingTask):
-        self._floor_robot_pick_and_place_tray(kitting_task._tray_id, kitting_task._agv_number)
+    def _complete_kitting_order(self, kitting_task:KittingTask):
+        self.floor_robot_pick_and_place_tray(kitting_task._tray_id, kitting_task._agv_number)
 
         for kitting_part in kitting_task._parts:
             self.floor_robot_pick_bin_part(kitting_part._part)
@@ -1192,7 +1196,10 @@ class CompetitionInterface(Node):
         
         self.move_agv(kitting_task._agv_number, kitting_task._destination)
 
-    def _floor_robot_pick_and_place_tray(self, tray_id, agv_number):
+    def floor_robot_pick_and_place_tray(self, tray_id, agv_number):
+        if not self.moveit_enabled:
+            self.get_logger().error("Moveit_py is not enabled, pick and place tray")
+            return
         tray_pose = Pose
         station = ""
         found_tray = False

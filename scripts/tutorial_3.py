@@ -14,14 +14,7 @@ def main(args=None):
     interface = CompetitionInterface()
     interface.start_competition()
 
-    while rclpy.ok():
-        try:
-            rclpy.spin_once(interface)
-            image = interface.camera_image
-            if image is not None:
-                interface.get_logger().info(interface.parse_advanced_camera_image(image), throttle_duration_sec=5.0)
-        except KeyboardInterrupt:
-            break
+    #TODO
 
     interface.destroy_node()
     rclpy.shutdown()
