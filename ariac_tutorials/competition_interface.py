@@ -456,7 +456,7 @@ class CompetitionInterface(Node):
             #     rclpy.spin_once(self)
             # except KeyboardInterrupt:
             #     return
-            self.wait(0.2)
+            pass
 
         self.get_logger().info('Competition is ready. Starting...')
 
@@ -470,7 +470,7 @@ class CompetitionInterface(Node):
         future = self._start_competition_client.call_async(request)
 
         while not future.done():
-            self.wait(0.2)
+            pass
         # Wait until the service call is completed
         # rclpy.spin_until_future_complete(self, future)
 
@@ -843,19 +843,17 @@ class CompetitionInterface(Node):
         request.avoid_collisions = avoid_collision
         request.max_velocity_scaling_factor = max_velocity_scaling_factor
         request.max_acceleration_scaling_factor = max_acceleration_scaling_factor
-
         
         future = self.get_cartesian_path_client.call_async(request)
-
+        
         rclpy.spin_until_future_complete(self, future, timeout_sec=10)
-
 
         if not future.done():
             raise Error("Timeout reached when calling move_cartesian service")
 
         result: GetCartesianPath.Response
         result = future.result()
-
+        
         return result.solution
 
     def _call_get_position_fk (self):
@@ -1100,7 +1098,6 @@ class CompetitionInterface(Node):
         part_pose = Pose()
         found_part = False
         bin_side = ""
-        
         for part in self._left_bins_parts:
             part : PartPoseMsg
             if (part.part.type == part_to_pick.type and part.part.color == part_to_pick.color):
