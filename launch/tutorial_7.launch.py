@@ -1,6 +1,4 @@
 import os
-from pytest import param
-import yaml
 
 from launch import LaunchDescription
 from launch.actions import (
@@ -8,37 +6,14 @@ from launch.actions import (
     OpaqueFunction,
 )
 
-from moveit_configs_utils import MoveItConfigsBuilder
-
-from launch.substitutions import Command, FindExecutable, PathJoinSubstitution, LaunchConfiguration
+from launch.substitutions import PathJoinSubstitution, LaunchConfiguration
 from launch.conditions import IfCondition
 from launch_ros.actions import Node
 
 from launch_ros.substitutions import FindPackageShare
 
 from ament_index_python.packages import get_package_share_directory
-
-
-def load_file(package_name, file_path):
-    package_path = get_package_share_directory(package_name)
-    absolute_file_path = os.path.join(package_path, file_path)
-
-    try:
-        with open(absolute_file_path, "r") as file:
-            return file.read()
-    except EnvironmentError:  # parent of IOError, OSError *and* WindowsError where available
-        return None
-
-def load_yaml(package_name, file_path):
-    package_path = get_package_share_directory(package_name)
-    absolute_file_path = os.path.join(package_path, file_path)
-
-    try:
-        with open(absolute_file_path, "r") as file:
-            return yaml.safe_load(file)
-    except EnvironmentError:  # parent of IOError, OSError *and* WindowsError where available
-        return None
-
+from moveit_configs_utils import MoveItConfigsBuilder
 
 def launch_setup(context, *args, **kwargs):
 
@@ -57,26 +32,10 @@ def launch_setup(context, *args, **kwargs):
         )
         .to_moveit_configs()
     )
-
-    trajectory_execution = {
-        "moveit_manage_controllers": False,
-        "trajectory_execution.allowed_execution_duration_scaling": 1.2,
-        "trajectory_execution.allowed_goal_duration_margin": 0.5,
-        "trajectory_execution.allowed_start_tolerance": 0.01,
-    }
-
-    planning_scene_monitor_parameters = {
-        "publish_planning_scene": True,
-        "publish_geometry_updates": True,
-        "publish_state_updates": True,
-        "publish_transforms_updates": True,
-    }
     
     parameters_dict = moveit_config.to_dict()
     parameters_dict["use_sim_time"] = True
-    parameters_dict.update(trajectory_execution)
-    parameters_dict.update(planning_scene_monitor_parameters)
-    moveit_py_test = Node(
+    tutorial_node = Node(
         package="ariac_tutorials",
         executable="tutorial_7.py",
         output="screen",
@@ -104,7 +63,7 @@ def launch_setup(context, *args, **kwargs):
     )
 
     nodes_to_start = [
-        moveit_py_test,
+        tutorial_node,
         rviz_node
     ]
 

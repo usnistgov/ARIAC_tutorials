@@ -1,5 +1,4 @@
 import os
-from pytest import param
 import yaml
 
 from launch import LaunchDescription
@@ -10,7 +9,7 @@ from launch.actions import (
 
 from moveit_configs_utils import MoveItConfigsBuilder
 
-from launch.substitutions import Command, FindExecutable, PathJoinSubstitution, LaunchConfiguration
+from launch.substitutions import PathJoinSubstitution, LaunchConfiguration
 from launch.conditions import IfCondition
 from launch_ros.actions import Node
 
