@@ -1546,16 +1546,11 @@ class CompetitionInterface(Node):
     
     def floor_robot_move_to_joint_position(self, position_name : str):
         with self._planning_scene_monitor.read_write() as scene:
-            self.get_logger().info("Right set start state")
             self._floor_robot.set_start_state(robot_state=scene.current_state)
-            self.get_logger().info("Setting joint states")
             scene.current_state.joint_positions = self.floor_position_dict[position_name]
-            self.get_logger().info("Right before construct joint state")
             joint_constraint = construct_joint_constraint(
                     robot_state=scene.current_state,
                     joint_model_group=self._ariac_robots.get_robot_model().get_joint_model_group("floor_robot"),
             )
-            self.get_logger().info("Right before set goal state")
             self._floor_robot.set_goal_state(motion_plan_constraints=[joint_constraint])
-        self.get_logger().info("Out of with statement")
         self._plan_and_execute(self._ariac_robots,self._floor_robot, self.get_logger(), robot_type="floor_robot")
