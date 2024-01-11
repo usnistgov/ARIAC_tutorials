@@ -1,14 +1,17 @@
 #!/usr/bin/env python3
 '''
 To test this script, run the following commands in separate terminals:
-- ros2 launch ariac_gazebo ariac.launch.py trial_name:=tutorial competitor_pkg:=ariac_tutorials
-- ros2 run ariac_tutorials tutorial_10.py
+- ros2 launch ariac_gazebo ariac.launch.py trial_name:=tutorial competitor_pkg:=ariac_tutorials dev_mode:=True
+- ros2 launch ariac_moveit_config ariac_robots_moveit.launch.py
+- ros2 launch ariac_tutorials tutorial_8.launch.py
 '''
-import threading
+
 import rclpy
-from ariac_tutorials.competition_interface import CompetitionInterface
-from ariac_msgs.msg import Part
+import threading
 from rclpy.executors import MultiThreadedExecutor
+from ariac_msgs.msg import Order as OrderMsg, KittingTask as KT
+from ariac_tutorials.competition_interface import CompetitionInterface
+
 
 def main(args=None):
     rclpy.init(args=args)
@@ -21,8 +24,6 @@ def main(args=None):
     
     interface.start_competition()
     
-    interface.move_floor_robot_home()
-
     interface.complete_orders()
 
     interface.destroy_node()
