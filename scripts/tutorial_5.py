@@ -23,21 +23,17 @@ def main(args=None):
 
     interface.start_competition()
 
-    while not interface.orders:
-        try:
-            rclpy.spin_once(interface)
-        except KeyboardInterrupt:
+    # Wait for assembly order to be recieved
+    while True:
+        interface.get_logger().info("Waiting for assembly order...", once=True)
+        if OrderMsg.ASSEMBLY in [order.order_type for order in interface.orders]:
+            interface.get_logger().info("Assembly order recieved...", once=True)
             break
 
-    for order in interface.orders:
-        if order.order_type == OrderMsg.ASSEMBLY:
-            for agv in order.order_task.agv_numbers:
-                interface.lock_agv_tray(agv)
-                interface.move_agv_to_station(agv, order.order_task.station)
-
-    interface.destroy_node()
-    rclpy.shutdown()
-
+    assembly_order = interface.orders[-1]
+    for agv in assembly_order.order_task.agv_numbers:
+        interface.lock_agv_tray(agv)
+        interface.move_agv_to_station(agv, assembly_order.order_task.station)
 
 if __name__ == '__main__':
     main()
