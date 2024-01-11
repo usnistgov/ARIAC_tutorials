@@ -210,7 +210,7 @@ class CompetitionInterface(Node):
             callback_group=self.orders_cb_group)
         
         # Flag for parsing incoming orders
-        self._parse_incoming_order = True
+        self._parse_incoming_order = False
         
         # List of orders
         self._orders = []
@@ -230,6 +230,15 @@ class CompetitionInterface(Node):
             self._ceiling_robot_gripper_state_cb,
             qos_profile_sensor_data,
             callback_group=self.ariac_cb_group)
+        
+        # Subscriber to the breakbeam status topic
+        self._breakbeam_sub = self.create_subscription(
+            BreakBeamStatusMsg,
+            '/ariac/sensors/conveyor_breakbeam/status',
+            self._breakbeam_cb,
+            qos_profile_sensor_data,
+            callback_group = self.ariac_cb_group
+        )
 
         # Service client for turning on/off the vacuum gripper on the floor robot
         self._floor_gripper_enable = self.create_client(
@@ -395,7 +404,7 @@ class CompetitionInterface(Node):
                                                         msg.tray_poses,
                                                         msg.sensor_pose)
 
-    def _breakbeam0_cb(self, msg: BreakBeamStatusMsg):
+    def _breakbeam_cb(self, msg: BreakBeamStatusMsg):
         '''Callback for the topic /ariac/sensors/breakbeam_0/status
 
         Arguments:
@@ -461,7 +470,7 @@ class CompetitionInterface(Node):
         future = self._start_competition_client.call_async(request)
 
         while not future.done():
-            pass
+            self.wait(0.2)
         # Wait until the service call is completed
         # rclpy.spin_until_future_complete(self, future)
 
