@@ -171,7 +171,7 @@ class CompetitionInterface(Node):
                        "left_bins":3,
                        "right_bins":-3}
 
-    def __init__(self, enable_moveit = True):
+    def __init__(self, enable_moveit=True):
         super().__init__('competition_interface')
 
         sim_time = Parameter(
@@ -416,6 +416,10 @@ class CompetitionInterface(Node):
     @property
     def parse_incoming_order(self):
         return self._parse_incoming_order
+    
+    @property
+    def get_competition_state(self):
+        return self._competition_state
 
     @parse_incoming_order.setter
     def parse_incoming_order(self, value):
@@ -487,12 +491,9 @@ class CompetitionInterface(Node):
 
         if self._competition_state == CompetitionStateMsg.STARTED:
             return
+        
         # Wait for competition to be ready
         while self._competition_state != CompetitionStateMsg.READY:
-            # try:
-            #     rclpy.spin_once(self)
-            # except KeyboardInterrupt:
-            #     return
             pass
 
         self.get_logger().info('Competition is ready. Starting...')
@@ -508,8 +509,6 @@ class CompetitionInterface(Node):
 
         while not future.done():
             pass
-        # Wait until the service call is completed
-        # rclpy.spin_until_future_complete(self, future)
 
         if future.result().success:
             self.get_logger().info('Started competition.')

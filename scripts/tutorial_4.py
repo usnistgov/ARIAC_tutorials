@@ -9,6 +9,7 @@ import rclpy
 import threading
 from rclpy.executors import MultiThreadedExecutor
 from ariac_tutorials.competition_interface import CompetitionInterface
+from ariac_msgs.msg import CompetitionState
 
 def main(args=None):
     rclpy.init(args=args)
@@ -18,19 +19,19 @@ def main(args=None):
 
     spin_thread = threading.Thread(target=executor.spin)
     spin_thread.start()
+
     interface.start_competition()
     # The following line enables order displays in the terminal.
     # Set to False to disable.
     interface.parse_incoming_order = True
+    interface.start_competition()
 
     while rclpy.ok():
         try:
-            rclpy.spin_once(interface)
+            if interface.get_competition_state == CompetitionState.ORDER_ANNOUNCEMENTS_DONE:
+                break
         except KeyboardInterrupt:
             break
-
-    interface.destroy_node()
-    rclpy.shutdown()
 
 
 if __name__ == '__main__':
