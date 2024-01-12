@@ -20,18 +20,15 @@ def main(args=None):
     spin_thread.start()
     interface.start_competition()
 
+    count = 0
+
     while rclpy.ok():
         try:
-            rclpy.spin_once(interface)
-            interface.get_logger().info(
-                f'Part Count: {interface.conveyor_part_count}', 
-                throttle_duration_sec=2.0)
+            if interface.conveyor_part_count > count:
+                interface.get_logger().info(f"Part detected on conveyor. Count: {interface.conveyor_part_count}")
+                count+= 1
         except KeyboardInterrupt:
             break
-
-    interface.destroy_node()
-    rclpy.shutdown()
-
 
 if __name__ == '__main__':
     main()
