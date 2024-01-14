@@ -37,6 +37,7 @@ install(PROGRAMS
 install(DIRECTORY
   config
   launch
+  tutorial_3_assets
   DESTINATION share/${PROJECT_NAME}
 )
 

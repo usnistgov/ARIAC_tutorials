@@ -8,13 +8,20 @@ robot_cameras:
     type: rgbd
 
 static_sensors:
-  conveyor_breakbeam:
-    type: break_beam
+  right_bins_RGB_camera:
+    type: rgb_camera
     visualize_fov: true
     pose:
-      xyz: [-0.36, 3.5, 0.88]
-      rpy: [0, 0, pi]
+      xyz: [-2.275, 3, 1.8]
+      rpy: [pi, pi/2, 0]
 
+  left_bins_RGB_camera:
+    type: rgb_camera
+    visualize_fov: true
+    pose:
+      xyz: [-2.275, -3, 1.8]
+      rpy: [pi, pi/2, 0]
+      
   right_bins_camera:
     type: advanced_logical_camera
     pose:
