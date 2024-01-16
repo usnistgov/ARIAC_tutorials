@@ -1186,7 +1186,6 @@ class CompetitionInterface(Node):
             print(e)
             
     def get_bin_parts(self, bin_number: int):
-        self.get_logger().info(f"Getting parts from bin {bin_number}")
         if type(self._left_bins_camera_image) == type(np.ndarray([])) and \
            type(self._right_bins_camera_image) == type(np.ndarray([])):
             if bin_number > 4:
@@ -1213,18 +1212,17 @@ class CompetitionInterface(Node):
             # find parts by colour in image
             self.find_parts(cv_img)
 
-            # print results
-            self.print_results()
-            
             # debug image view on /ariac/sensors/display_bounding_boxes
             if self.display_bounding_boxes:            
-                # draw grid vertices to visualize slots
-                self.draw_slot_grid(cv_img)
                 ros_img = self._bridge.cv2_to_imgmsg(cv_img, "bgr8")
                 self.display_bounding_boxes_pub.publish(ros_img)
 
+            # print results
+            return self.output_by_slot()
+
         else:
             self.get_logger().info("No image received yet")
+            return None
 
     def find_parts(self, img):
         '''
@@ -1288,7 +1286,8 @@ class CompetitionInterface(Node):
         self.part_poses[color][type] = refined_matches
         self.centered_part_poses[color][type] = centered_refined_matches
 
-    def print_results(self):
+    def output_by_slot(self):
+        bin = dict([(i, None) for i in range(1, 10)])
         for color in self.centered_part_poses.keys():
             for type in self.centered_part_poses[color].keys():
                for (csx, csy) in self.centered_part_poses[color][type]:
@@ -1309,12 +1308,12 @@ class CompetitionInterface(Node):
                         col = 3
                     else: # csx > 68 and csx < 131:
                         col = 2
-
-                    self.get_logger().info(f"slot: {self.slot_mapping[(row, col)]}")
-                    self.get_logger().info(f"  - part:")
-                    self.get_logger().info(f"      - colour: {self.color_mapping[color]}")
-                    self.get_logger().info(f"      - type: {self.type_mapping[type]}")
-        self.get_logger().info("---")
+                    
+                    bin[self.slot_mapping[(row, col)]] = PartMsg(color=color, type=type)
+                    for k, v in bin.items():
+                        if v is None:
+                            bin[k] = PartMsg(color=None, type=None)
+        return bin
 
     # Helper functions for part detection
     def colorBound(self, color, bound):
@@ -1343,28 +1342,6 @@ class CompetitionInterface(Node):
            (not self.pump_template.shape[0] > 0):
             return False
         return True
-
-    def draw_slot_grid(self, cv_img):
-        # row 0
-        cv2.circle(cv_img, (5+0*63, 25+0*63), 1, (0, 0, 255), 3)
-        cv2.circle(cv_img, (5+1*63, 25+0*63), 1, (0, 0, 255), 3)
-        cv2.circle(cv_img, (5+2*63, 25+0*63), 1, (0, 0, 255), 3)
-        cv2.circle(cv_img, (5+3*63, 25+0*63), 1, (0, 0, 255), 3)
-        # row 1
-        cv2.circle(cv_img, (5+0*63, 25+1*63), 1, (0, 0, 255), 3)
-        cv2.circle(cv_img, (5+1*63, 25+1*63), 1, (0, 0, 255), 3)
-        cv2.circle(cv_img, (5+2*63, 25+1*63), 1, (0, 0, 255), 3)
-        cv2.circle(cv_img, (5+3*63, 25+1*63), 1, (0, 0, 255), 3)
-        # row 2
-        cv2.circle(cv_img, (5+0*63, 25+2*63), 1, (0, 0, 255), 3)
-        cv2.circle(cv_img, (5+1*63, 25+2*63), 1, (0, 0, 255), 3)
-        cv2.circle(cv_img, (5+2*63, 25+2*63), 1, (0, 0, 255), 3)
-        cv2.circle(cv_img, (5+3*63, 25+2*63), 1, (0, 0, 255), 3)
-        # row 3
-        cv2.circle(cv_img, (5+0*63, 25+3*63), 1, (0, 0, 255), 3)
-        cv2.circle(cv_img, (5+1*63, 25+3*63), 1, (0, 0, 255), 3)
-        cv2.circle(cv_img, (5+2*63, 25+3*63), 1, (0, 0, 255), 3)
-        cv2.circle(cv_img, (5+3*63, 25+3*63), 1, (0, 0, 255), 3)
 
     def get_tray_ids(self, tray_table_number):
         pass

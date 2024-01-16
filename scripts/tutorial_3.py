@@ -26,13 +26,17 @@ def main(args=None):
     
     bin_number = 2
 
-    while rclpy.ok():
-        try:
-            # publishes parts in the bin on /ariac/sensors/slot_occupancy
-            interface.get_bin_parts(bin_number)
-            sleep(1)
-        except KeyboardInterrupt:
-            break
+    interface.get_logger().info(f"Getting parts from bin {bin_number}")
+    bin_parts = None
+    while bin_parts is None:
+        bin_parts = interface.get_bin_parts(bin_number)
+        sleep(1)
+    if bin_parts:
+        for _slot_number, _part in bin_parts.items():
+            if _part.type is None:
+                interface.get_logger().info(f"Slot {_slot_number}: Empty")
+            else:
+                interface.get_logger().info(f"Slot {_slot_number}: {_part.color} {_part.type}")
             
     interface.destroy_node()
     rclpy.shutdown()

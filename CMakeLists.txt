@@ -37,7 +37,7 @@ DESTINATION lib/${PROJECT_NAME}
 install(DIRECTORY
   config
   launch
-  tutorial_3_assets
+  resources
   DESTINATION share/${PROJECT_NAME}
 )
 
