@@ -17,14 +17,12 @@ static_sensors:
       
   right_bins_RGB_camera:
     type: rgb_camera
-    visualize_fov: true
     pose:
       xyz: [-2.275, 3, 1.8]
       rpy: [pi, pi/2, 0]
 
   left_bins_RGB_camera:
     type: rgb_camera
-    visualize_fov: true
     pose:
       xyz: [-2.275, -3, 1.8]
       rpy: [pi, pi/2, 0]
