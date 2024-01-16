@@ -14,8 +14,8 @@ find_package(orocos_kdl REQUIRED)
 
 # Install the config directory to the package share directory
 install(DIRECTORY 
-  config
-  DESTINATION share/${PROJECT_NAME}
+config
+DESTINATION share/${PROJECT_NAME}
 )
 
 # Install Python modules
@@ -23,15 +23,15 @@ ament_python_install_package(${PROJECT_NAME} SCRIPTS_DESTINATION lib/${PROJECT_N
 
 # Install Python executables
 install(PROGRAMS
-  scripts/tutorial_1.py
-  scripts/tutorial_2.py
-  scripts/tutorial_3.py
-  scripts/tutorial_4.py
-  scripts/tutorial_5.py
-  scripts/tutorial_6.py
-  scripts/tutorial_7.py
-  scripts/tutorial_8.py
-  DESTINATION lib/${PROJECT_NAME}
+scripts/tutorial_1.py
+scripts/tutorial_2.py
+scripts/tutorial_3.py
+scripts/tutorial_4.py
+scripts/tutorial_5.py
+scripts/tutorial_6.py
+scripts/tutorial_7.py
+scripts/tutorial_8.py
+DESTINATION lib/${PROJECT_NAME}
 )
 
 install(DIRECTORY

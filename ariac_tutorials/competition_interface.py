@@ -50,8 +50,6 @@ from ariac_msgs.msg import (
     AssemblyState as AssemblyStateMsg,
     CombinedTask as CombinedTaskMsg,
     VacuumGripperState,
-    SlotOccupancy as SlotOccupancyMsg,
-    SlotPart as SlotPartMsg,
 )
 
 from ariac_msgs.srv import (
@@ -213,7 +211,7 @@ class CompetitionInterface(Node):
         # Store each camera image as an AdvancedLogicalCameraImage object
         self._camera_image: AdvancedLogicalCameraImage = None
 
-        # turn on debug image publishing for part detection
+        # Turn on debug image publishing for part detection
         self.display_bounding_boxes =  True
 
         # cv_bridge interface
@@ -416,12 +414,7 @@ class CompetitionInterface(Node):
                                                                   # callback group,
                                                                   )
         
-        # slot occupancy publisher for get_bin_parts
-        self.slot_occupancy_pub = self.create_publisher(SlotOccupancyMsg,
-                                              "/ariac/sensors/slot_occupancy",
-                                              qos_profile_sensor_data)
-        
-        # debug image publisher
+        # debug image viewer topic for get_bin_parts
         self.display_bounding_boxes_pub = self.create_publisher(ImageMsg,
                                               "/ariac/sensors/display_bounding_boxes",
                                               qos_profile_sensor_data)
@@ -1193,6 +1186,7 @@ class CompetitionInterface(Node):
             print(e)
             
     def get_bin_parts(self, bin_number: int):
+        self.get_logger().info(f"Getting parts from bin {bin_number}")
         if type(self._left_bins_camera_image) == type(np.ndarray([])) and \
            type(self._right_bins_camera_image) == type(np.ndarray([])):
             if bin_number > 4:
@@ -1219,8 +1213,8 @@ class CompetitionInterface(Node):
             # find parts by colour in image
             self.find_parts(cv_img)
 
-            # publish slot occupancy results
-            self.publish_results()
+            # print results
+            self.print_results()
             
             # debug image view on /ariac/sensors/display_bounding_boxes
             if self.display_bounding_boxes:            
@@ -1290,22 +1284,14 @@ class CompetitionInterface(Node):
         for sx, sy, _, _ in refined_matches:
             centered_refined_matches.append((sx + htW, sy + htH))
 
-        # store
+        # store results
         self.part_poses[color][type] = refined_matches
         self.centered_part_poses[color][type] = centered_refined_matches
 
-    def publish_results(self):
-
-        slot_occupancy_msg = self.fill_slots()
-        self.slot_occupancy_pub.publish(slot_occupancy_msg)
-
-    def fill_slots(self):
-        slot_occupancy_msg = SlotOccupancyMsg()
-
+    def print_results(self):
         for color in self.centered_part_poses.keys():
             for type in self.centered_part_poses[color].keys():
                for (csx, csy) in self.centered_part_poses[color][type]:
-                    slot_part = SlotPartMsg()
                     row = 0
                     # slot 1, 2, 3
                     if csy <= 88:
@@ -1323,12 +1309,12 @@ class CompetitionInterface(Node):
                         col = 3
                     else: # csx > 68 and csx < 131:
                         col = 2
-                    slot_part.slot = self.slot_mapping[(row, col)]
-                    slot_part.part.color = self.color_mapping[color]
-                    slot_part.part.type = self.type_mapping[type]
-                    slot_occupancy_msg.slot_list.append(slot_part)
 
-        return slot_occupancy_msg
+                    self.get_logger().info(f"slot: {self.slot_mapping[(row, col)]}")
+                    self.get_logger().info(f"  - part:")
+                    self.get_logger().info(f"      - colour: {self.color_mapping[color]}")
+                    self.get_logger().info(f"      - type: {self.type_mapping[type]}")
+        self.get_logger().info("---")
 
     # Helper functions for part detection
     def colorBound(self, color, bound):
