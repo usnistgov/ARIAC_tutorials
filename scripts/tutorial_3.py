@@ -24,11 +24,15 @@ def main(args=None):
     # /ariac/sensors/display_bounding_boxes
     interface.display_bounding_boxes = True
     
-    looking_for_parts_in_bin = 2
-    while(1):
-        # publishes parts in the bin on /ariac/sensors/slot_occupancy
-        interface.get_bin_parts(looking_for_parts_in_bin)
-        sleep(1)
+    bin_number = 2
+
+    while rclpy.ok():
+        try:
+            # publishes parts in the bin on /ariac/sensors/slot_occupancy
+            interface.get_bin_parts(bin_number)
+            sleep(1)
+        except KeyboardInterrupt:
+            break
             
     interface.destroy_node()
     rclpy.shutdown()
