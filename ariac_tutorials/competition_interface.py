@@ -212,7 +212,7 @@ class CompetitionInterface(Node):
         self._camera_image: AdvancedLogicalCameraImage = None
 
         # Turn on debug image publishing for part detection
-        self.display_bounding_boxes =  True
+        self.display_bounding_boxes =  False
 
         # cv_bridge interface
         self._bridge = CvBridge()
