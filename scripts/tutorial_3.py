@@ -4,11 +4,11 @@ To test this script, run the following commands in separate terminals:
 - ros2 launch ariac_gazebo ariac.launch.py trial_name:=tutorial competitor_pkg:=ariac_tutorials
 - ros2 run ariac_tutorials tutorial_3.py
 '''
-
 import rclpy
 import threading
 from rclpy.executors import MultiThreadedExecutor
 from ariac_tutorials.competition_interface import CompetitionInterface
+from time import sleep
 
 def main(args=None):
     rclpy.init(args=args)
@@ -20,8 +20,24 @@ def main(args=None):
     spin_thread.start()
     interface.start_competition()
 
-    #TODO
+    # Turns on a debug topic to visualize bounding boxes and slots
+    # /ariac/sensors/display_bounding_boxes
+    interface.display_bounding_boxes = True
+    
+    bin_number = 2
 
+    interface.get_logger().info(f"Getting parts from bin {bin_number}")
+    bin_parts = None
+    while bin_parts is None:
+        bin_parts = interface.get_bin_parts(bin_number)
+        sleep(1)
+    if bin_parts:
+        for _slot_number, _part in bin_parts.items():
+            if _part.type is None:
+                interface.get_logger().info(f"Slot {_slot_number}: Empty")
+            else:
+                interface.get_logger().info(f"Slot {_slot_number}: {_part.color} {_part.type}")
+            
     interface.destroy_node()
     rclpy.shutdown()
 
