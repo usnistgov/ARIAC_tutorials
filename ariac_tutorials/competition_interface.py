@@ -1327,15 +1327,16 @@ class CompetitionInterface(Node):
                              self.HSVcolors[color]["vmax"]])
 
     def load_part_templates(self):
+        
         self.sensor_template = cv2.imread(
-            path.join(get_package_share_directory("ariac_tutorials"), "tutorial_3_assets", "sensor.png"), cv2.IMREAD_GRAYSCALE)
+            path.join(get_package_share_directory("ariac_tutorials"), "resources", "sensor.png"), cv2.IMREAD_GRAYSCALE)
         self.regulator_template = cv2.imread(
-            path.join(get_package_share_directory("ariac_tutorials"), "tutorial_3_assets", "regulator.png"), cv2.IMREAD_GRAYSCALE)
+            path.join(get_package_share_directory("ariac_tutorials"), "resources", "regulator.png"), cv2.IMREAD_GRAYSCALE)
         self.battery_template = cv2.imread(
-            path.join(get_package_share_directory("ariac_tutorials"), "tutorial_3_assets", "battery.png"), cv2.IMREAD_GRAYSCALE)
+            path.join(get_package_share_directory("ariac_tutorials"), "resources", "battery.png"), cv2.IMREAD_GRAYSCALE)
         self.pump_template = cv2.imread(
-            path.join(get_package_share_directory("ariac_tutorials"), "tutorial_3_assets", "pump.png"), cv2.IMREAD_GRAYSCALE)
-
+            path.join(get_package_share_directory("ariac_tutorials"), "resources", "pump.png"), cv2.IMREAD_GRAYSCALE)
+        
         if (not self.sensor_template.shape[0] > 0) or \
            (not self.regulator_template.shape[0] > 0) or \
            (not self.battery_template.shape[0] > 0) or \
