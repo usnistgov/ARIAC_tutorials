@@ -23,7 +23,11 @@ def main(args=None):
                 interface.get_logger().info(f"Part detected on conveyor. Count: {interface.conveyor_part_count}")
                 count+= 1
         except KeyboardInterrupt:
+            
             break
+    
+    interface.end_competition()
+    spin_thread.join()
 
 if __name__ == '__main__':
     main()

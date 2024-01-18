@@ -27,7 +27,9 @@ def main(args=None):
                 break
         except KeyboardInterrupt:
             break
-
+    
+    interface.end_competition()
+    spin_thread.join()
 
 if __name__ == '__main__':
     main()

@@ -25,6 +25,7 @@ def main(args=None):
             interface.floor_robot_pick_and_place_tray(order.order_task.tray_id, order.order_task.agv_number)
             break
 
+    interface.end_competition()
     interface.destroy_node()
     rclpy.shutdown()
 

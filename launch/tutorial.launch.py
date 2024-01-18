@@ -60,7 +60,7 @@ def launch_setup(context, *args, **kwargs):
         output="screen",
         parameters=[
             parameters
-        ],
+        ]
     )
 
     # Move Group node

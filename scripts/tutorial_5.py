@@ -28,6 +28,9 @@ def main(args=None):
     for agv in assembly_order.order_task.agv_numbers:
         interface.lock_agv_tray(agv)
         interface.move_agv_to_station(agv, assembly_order.order_task.station)
+    
+    interface.end_competition()
+    spin_thread.join()
 
 if __name__ == '__main__':
     main()

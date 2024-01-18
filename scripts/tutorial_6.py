@@ -28,6 +28,7 @@ def main(args=None):
                 break
             break
 
+    interface.end_competition()
     interface.destroy_node()
     rclpy.shutdown()
 

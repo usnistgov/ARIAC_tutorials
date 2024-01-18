@@ -20,6 +20,7 @@ def main(args=None):
     
     interface.complete_orders()
 
+    interface.end_competition()
     interface.destroy_node()
     rclpy.shutdown()
 
