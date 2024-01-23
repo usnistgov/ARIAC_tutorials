@@ -1468,7 +1468,7 @@ class CompetitionInterface(Node):
             self.get_logger().error("Moveit_py is not enabled, unable to complete orders")
             return
         while len(self._orders) == 0:
-            self.get_logger().info("No orders have been recieved yet", throttle_duration_sec=5.0)
+            self.get_logger().info("No orders have been received yet", throttle_duration_sec=5.0)
 
         self.add_objects_to_planning_scene()
 
