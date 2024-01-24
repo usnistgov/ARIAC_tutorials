@@ -1,9 +1,4 @@
 #!/usr/bin/env python3
-'''
-To test this script, run the following commands in separate terminals:
-- ros2 launch ariac_gazebo ariac.launch.py trial_name:=tutorial competitor_pkg:=ariac_tutorials
-- ros2 run ariac_tutorials tutorial_4.py
-'''
 
 import rclpy
 import threading
@@ -20,10 +15,10 @@ def main(args=None):
     spin_thread = threading.Thread(target=executor.spin)
     spin_thread.start()
 
-    interface.start_competition()
     # The following line enables order displays in the terminal.
     # Set to False to disable.
     interface.parse_incoming_order = True
+
     interface.start_competition()
 
     while rclpy.ok():
@@ -32,7 +27,9 @@ def main(args=None):
                 break
         except KeyboardInterrupt:
             break
-
+    
+    interface.end_competition()
+    spin_thread.join()
 
 if __name__ == '__main__':
     main()

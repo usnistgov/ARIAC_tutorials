@@ -188,8 +188,9 @@ class CompetitionInterface(Node):
         self.moveit_cb_group = MutuallyExclusiveCallbackGroup()
         self.orders_cb_group = ReentrantCallbackGroup()
 
-        # Service client for starting the competition
+        # Service clients for starting and ending the competition
         self._start_competition_client = self.create_client(Trigger, '/ariac/start_competition')
+        self._end_competition_client = self.create_client(Trigger, "/ariac/end_competition")
 
         # Subscriber to the competition state topic
         self._competition_state_sub = self.create_subscription(
@@ -468,10 +469,16 @@ class CompetitionInterface(Node):
         
         self.floor_joint_positions_arrs = {
             "floor_kts1_js_":[4.0,1.57,-1.57,1.57,-1.57,-1.57,0.0],
-            "floor_kts2_js_":[-4.0,-1.57,-1.57,1.57,-1.57,-1.57,0.0]
+            "floor_kts2_js_":[-4.0,-1.57,-1.57,1.57,-1.57,-1.57,0.0],
+            "left_bins":[3.0,0.0,-1.57,1.57,-1.57,-1.57,0.0],
+            "right_bins":[-3.0,0.0,-1.57,1.57,-1.57,-1.57,0.0],
+            "floor_conveyor_js_":[0.0,3.14,-0.9162979,2.04204, -2.67035, -1.57, 0.0]
         }
+        for i in range(1,5):
+            self.floor_joint_positions_arrs[f"agv{i}"]=[self._rail_positions[f"agv{i}"],0.0,-1.57,1.57,-1.57,-1.57,0.0]
+            
         self.floor_position_dict = {key:self._create_floor_joint_position_state(self.floor_joint_positions_arrs[key])
-                                    for key in self.floor_joint_positions_arrs.keys()}
+                                      for key in self.floor_joint_positions_arrs.keys()}
 
     @property
     def orders(self):
@@ -518,7 +525,7 @@ class CompetitionInterface(Node):
                                                         msg.sensor_pose)
 
     def _breakbeam_cb(self, msg: BreakBeamStatusMsg):
-        '''Callback for the topic /ariac/sensors/breakbeam_0/status
+        '''Callback for the topic /ariac/sensors/conveyor_breakbeam/status
 
         Arguments:
             msg -- BreakBeamStatusMsg message
@@ -586,6 +593,26 @@ class CompetitionInterface(Node):
             self.get_logger().info('Started competition.')
         else:
             self.get_logger().warn('Unable to start competition')
+    
+    def end_competition(self):
+        self.get_logger().info('Ending competition')
+
+        # Check if service is available
+        if not self._end_competition_client.wait_for_service(timeout_sec=3.0):
+            self.get_logger().error('Service \'/ariac/end_competition\' is not available.')
+            return
+
+        # Create trigger request and call starter service
+        request = Trigger.Request()
+        future = self._end_competition_client.call_async(request)
+
+        while not future.done():
+            pass
+
+        if future.result().success:
+            self.get_logger().info('Ended competition.')
+        else:
+            self.get_logger().warn('Unable to end competition')
 
     def parse_advanced_camera_image(self, image: AdvancedLogicalCameraImage) -> str:
         '''
@@ -1327,15 +1354,16 @@ class CompetitionInterface(Node):
                              self.HSVcolors[color]["vmax"]])
 
     def load_part_templates(self):
+        
         self.sensor_template = cv2.imread(
-            path.join(get_package_share_directory("ariac_tutorials"), "tutorial_3_assets", "sensor.png"), cv2.IMREAD_GRAYSCALE)
+            path.join(get_package_share_directory("ariac_tutorials"), "resources", "sensor.png"), cv2.IMREAD_GRAYSCALE)
         self.regulator_template = cv2.imread(
-            path.join(get_package_share_directory("ariac_tutorials"), "tutorial_3_assets", "regulator.png"), cv2.IMREAD_GRAYSCALE)
+            path.join(get_package_share_directory("ariac_tutorials"), "resources", "regulator.png"), cv2.IMREAD_GRAYSCALE)
         self.battery_template = cv2.imread(
-            path.join(get_package_share_directory("ariac_tutorials"), "tutorial_3_assets", "battery.png"), cv2.IMREAD_GRAYSCALE)
+            path.join(get_package_share_directory("ariac_tutorials"), "resources", "battery.png"), cv2.IMREAD_GRAYSCALE)
         self.pump_template = cv2.imread(
-            path.join(get_package_share_directory("ariac_tutorials"), "tutorial_3_assets", "pump.png"), cv2.IMREAD_GRAYSCALE)
-
+            path.join(get_package_share_directory("ariac_tutorials"), "resources", "pump.png"), cv2.IMREAD_GRAYSCALE)
+        
         if (not self.sensor_template.shape[0] > 0) or \
            (not self.regulator_template.shape[0] > 0) or \
            (not self.battery_template.shape[0] > 0) or \
@@ -1409,8 +1437,8 @@ class CompetitionInterface(Node):
                 station = "kts2"
             self.floor_robot_move_to_joint_position(f"floor_{station}_js_")
             self._floor_robot_change_gripper(station, "parts")
-        self.floor_robot_move_joints_dict({"linear_actuator_joint":self._rail_positions[bin_side],
-                                       "floor_shoulder_pan_joint":0})
+
+        self.floor_robot_move_to_joint_position(bin_side)
         part_rotation = rpy_from_quaternion(part_pose.orientation)[2]
         
         gripper_orientation = quaternion_from_euler(0.0,pi,part_rotation)
@@ -1424,22 +1452,23 @@ class CompetitionInterface(Node):
         self.set_floor_robot_gripper_state(True)
         self._floor_robot_wait_for_attach(30.0, gripper_orientation)
 
+        self.floor_robot_move_to_joint_position(bin_side)
+
         self._attach_model_to_floor_gripper(part_to_pick, part_pose)
 
         self.floor_robot_attached_part_ = part_to_pick
-        self.get_logger().info("Part attached. Attempting to move up")
+        self.get_logger().info("Part attached. Moving up")
         waypoints = [build_pose(part_pose.position.x, part_pose.position.y,
                                 part_pose.position.z+0.5,
                                 gripper_orientation)]
         self._move_floor_robot_cartesian(waypoints, 0.3, 0.3, False)
-        self.get_logger().info("After move up")
     
     def complete_orders(self):
         if not self.moveit_enabled:
             self.get_logger().error("Moveit_py is not enabled, unable to complete orders")
             return
         while len(self._orders) == 0:
-            self.get_logger().info("No orders have been recieved yet", throttle_duration_sec=5.0)
+            self.get_logger().info("No orders have been received yet", throttle_duration_sec=5.0)
 
         self.add_objects_to_planning_scene()
 
@@ -1577,8 +1606,7 @@ class CompetitionInterface(Node):
             self.get_logger().error("No part attached")
             return False
 
-        self.floor_robot_move_joints_dict({"linear_actuator_joint":self._rail_positions[f"agv{agv_num}"],
-                                       "floor_shoulder_pan_joint":0})
+        self.floor_robot_move_to_joint_position(f"agv{agv_num}")
         
         agv_tray_pose = self._frame_world_pose(f"agv{agv_num}_tray")
 

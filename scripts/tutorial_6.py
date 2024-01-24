@@ -1,10 +1,4 @@
 #!/usr/bin/env python3
-'''
-To test this script, run the following commands in separate terminals:
-- ros2 launch ariac_gazebo ariac.launch.py trial_name:=tutorial competitor_pkg:=ariac_tutorials dev_mode:=True
-- ros2 launch ariac_moveit_config ariac_robots_moveit.launch.py
-- ros2 launch ariac_tutorials tutorial_6.launch.py
-'''
 
 import rclpy
 import threading
@@ -34,6 +28,7 @@ def main(args=None):
                 break
             break
 
+    interface.end_competition()
     interface.destroy_node()
     rclpy.shutdown()
 

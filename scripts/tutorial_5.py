@@ -1,10 +1,4 @@
 #!/usr/bin/env python3
-'''
-To test this script, run the following commands in separate terminals:
-- ros2 launch ariac_gazebo ariac.launch.py trial_name:=tutorial competitor_pkg:=ariac_tutorials
-- ros2 run ariac_tutorials tutorial_5.py
-'''
-
 
 import rclpy
 import threading
@@ -34,6 +28,9 @@ def main(args=None):
     for agv in assembly_order.order_task.agv_numbers:
         interface.lock_agv_tray(agv)
         interface.move_agv_to_station(agv, assembly_order.order_task.station)
+    
+    interface.end_competition()
+    spin_thread.join()
 
 if __name__ == '__main__':
     main()

@@ -1,14 +1,10 @@
 #!/usr/bin/env python3
-'''
-To test this script, run the following commands in separate terminals:
-- ros2 launch ariac_gazebo ariac.launch.py trial_name:=tutorial
-- ros2 run ariac_tutorials tutorial_1.py
-'''
 
 import rclpy
 import threading
 from rclpy.executors import MultiThreadedExecutor
 from ariac_tutorials.competition_interface import CompetitionInterface
+from ariac_msgs.msg import CompetitionState
 
 def main(args=None):
     rclpy.init(args=args)
@@ -21,6 +17,12 @@ def main(args=None):
     spin_thread.start()
 
     interface.start_competition()
+
+    while not interface.get_competition_state == CompetitionState.ORDER_ANNOUNCEMENTS_DONE:
+        pass
+    
+    interface.end_competition()
+    spin_thread.join()
 
 
 if __name__ == '__main__':
