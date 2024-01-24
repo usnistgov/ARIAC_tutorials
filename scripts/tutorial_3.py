@@ -19,19 +19,28 @@ def main(args=None):
     # /ariac/sensors/display_bounding_boxes
     interface.display_bounding_boxes = True
     
-    bin_number = 2
+    bin_number = 6
 
     interface.get_logger().info(f"Getting parts from bin {bin_number}")
     bin_parts = None
-    while bin_parts is None:
-        bin_parts = interface.get_bin_parts(bin_number)
-        sleep(1)
-    if bin_parts:
-        for _slot_number, _part in bin_parts.items():
-            if _part.type is None:
-                interface.get_logger().info(f"Slot {_slot_number}: Empty")
+    
+    while rclpy.ok():
+        try:
+            if bin_parts is None:
+                interface.get_logger().info(f"Bin {bin_number} is empty.")
+                bin_parts = interface.get_bin_parts(bin_number)
+                sleep(1)
             else:
-                interface.get_logger().info(f"Slot {_slot_number}: {_part.color} {_part.type}")
+                for _slot_number, _part in bin_parts.items():
+                    if _part.type is None:
+                        interface.get_logger().info(f"Slot {_slot_number}: Empty")
+                    else:
+                        interface.get_logger().info(f"Slot {_slot_number}: {_part.color} {_part.type}")
+            interface.get_logger().info(f"---")
+
+        except KeyboardInterrupt:
+            
+            break
     
     interface.end_competition()
     interface.destroy_node()
