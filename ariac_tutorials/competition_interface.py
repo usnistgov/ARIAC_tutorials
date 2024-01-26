@@ -426,23 +426,19 @@ class CompetitionInterface(Node):
         self.agv1_status_sub = self.create_subscription(AGVStatusMsg,
                                                         "/ariac/agv1_status",
                                                         self._agv1_status_cb,
-                                                        10,
-                                                        callback_group=self.moveit_cb_group)
+                                                        10)
         self.agv2_status_sub = self.create_subscription(AGVStatusMsg,
                                                         "/ariac/agv2_status",
                                                         self._agv2_status_cb,
-                                                        10,
-                                                        callback_group=self.moveit_cb_group)
+                                                        10)
         self.agv3_status_sub = self.create_subscription(AGVStatusMsg,
                                                         "/ariac/agv3_status",
                                                         self._agv3_status_cb,
-                                                        10,
-                                                        callback_group=self.moveit_cb_group)
+                                                        10)
         self.agv4_status_sub = self.create_subscription(AGVStatusMsg,
                                                         "/ariac/agv4_status",
                                                         self._agv4_status_cb,
-                                                        10,
-                                                        callback_group=self.moveit_cb_group)
+                                                        10)
         
         # TF
         self.tf_buffer = Buffer()
@@ -1371,9 +1367,6 @@ class CompetitionInterface(Node):
             return False
         return True
 
-    def get_tray_ids(self, tray_table_number):
-        pass
-
     def _agv1_status_cb(self, msg : AGVStatusMsg):
         self._agv_locations[1] = msg.location
     
@@ -1381,6 +1374,7 @@ class CompetitionInterface(Node):
         self._agv_locations[2] = msg.location
     
     def _agv3_status_cb(self, msg : AGVStatusMsg):
+        self.get_logger().info("\n"*10+str(msg.location)+"\n"*10)
         self._agv_locations[3] = msg.location
     
     def _agv4_status_cb(self, msg : AGVStatusMsg):
@@ -1457,11 +1451,6 @@ class CompetitionInterface(Node):
         self._attach_model_to_floor_gripper(part_to_pick, part_pose)
 
         self.floor_robot_attached_part_ = part_to_pick
-        self.get_logger().info("Part attached. Moving up")
-        waypoints = [build_pose(part_pose.position.x, part_pose.position.y,
-                                part_pose.position.z+0.5,
-                                gripper_orientation)]
-        self._move_floor_robot_cartesian(waypoints, 0.3, 0.3, False)
     
     def complete_orders(self):
         if not self.moveit_enabled:
@@ -1479,7 +1468,7 @@ class CompetitionInterface(Node):
                 break
 
             if len(self._orders) == 0:
-                if (self._competition_state == CompetitionStateMsg.ORDER_ANNOUNCEMENTS_DONE):
+                if (self._competition_state != CompetitionStateMsg.ORDER_ANNOUNCEMENTS_DONE):
                     self.get_logger().info("Waiting for orders...")
                     while len(self._orders) == 0:
                         sleep(1)
@@ -1491,17 +1480,13 @@ class CompetitionInterface(Node):
             self.current_order = copy(self._orders[0])
             self.current_order : Order
             del self._orders[0]
-            kitting_agv_num = -1
-
+            print(len(self._orders))
             if self.current_order.order_type == OrderMsg.KITTING:
                 self._complete_kitting_order(self.current_order.order_task)
-                kitting_agv_num = self.current_order.order_task.agv_number
-                agv_location = -1
-                # while agv_location !=AGVStatusMsg.WAREHOUSE:
-                #     agv_location = self._agv_locations[kitting_agv_num]
                 self.submit_order(self.current_order.order_id)
             else:
-                self.get_logger().info("This tutorial is only able to complete kitting orders")  
+                self.get_logger().info("This tutorial is only able to complete kitting orders")
+        self.end_competition()
         return success
 
     def _complete_kitting_order(self, kitting_task:KittingTask):
@@ -1700,7 +1685,7 @@ class CompetitionInterface(Node):
         else:
             self.get_logger().warn('Unable to submit order')
     
-    def move_agv(self, num, destination):
+    def move_agv(self, agv_num, destination):
         '''
         Move an AGV to an assembly station.
         Args:
@@ -1713,7 +1698,7 @@ class CompetitionInterface(Node):
         # Create a client to send a request to the `/ariac/move_agv` service.
         mover = self.create_client(
             MoveAGV,
-            f'/ariac/move_agv{num}')
+            f'/ariac/move_agv{agv_num}')
 
         # Create a request object.
         request = MoveAGV.Request()
@@ -1730,11 +1715,13 @@ class CompetitionInterface(Node):
         except KeyboardInterrupt as kb_error:
             raise KeyboardInterrupt from kb_error
 
-        # Check the result of the service call.
-        if future.result().success:
-            self.get_logger().info(f'Moved AGV{num} to {self._destinations[destination]}')
-        else:
-            self.get_logger().warn(future.result().message)  
+        while (self._agv_locations[agv_num] in [AGVStatusMsg.KITTING,AGVStatusMsg.WAREHOUSE,AGVStatusMsg.UNKNOWN]):
+            if (self._agv_locations[agv_num] == destination):
+                self.get_logger().info(f'Moved AGV{agv_num} to {self._destinations[destination]}')
+                return True
+
+        self.get_logger().info(f"Unable to move AGV {agv_num} to {self._destinations[destination]}")
+        return False; 
                     
     def _makeAttachedMesh(self, name, pose, filename, robot) -> AttachedCollisionObject:
         with pyassimp.load(filename) as scene:
