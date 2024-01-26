@@ -137,6 +137,7 @@ class CompetitionInterface(Node):
         AGVStatusMsg.ASSEMBLY_FRONT: 'front assembly station',
         AGVStatusMsg.ASSEMBLY_BACK: 'back assembly station',
         AGVStatusMsg.WAREHOUSE: 'warehouse',
+        AGVStatusMsg.UNKNOWN: 'unknown',
     }
     '''Dictionary for converting AGVDestination constants to strings'''
 
@@ -1374,7 +1375,6 @@ class CompetitionInterface(Node):
         self._agv_locations[2] = msg.location
     
     def _agv3_status_cb(self, msg : AGVStatusMsg):
-        self.get_logger().info("\n"*10+str(msg.location)+"\n"*10)
         self._agv_locations[3] = msg.location
     
     def _agv4_status_cb(self, msg : AGVStatusMsg):
@@ -1716,6 +1716,7 @@ class CompetitionInterface(Node):
             raise KeyboardInterrupt from kb_error
 
         while (self._agv_locations[agv_num] in [AGVStatusMsg.KITTING,AGVStatusMsg.WAREHOUSE,AGVStatusMsg.UNKNOWN]):
+            self.get_logger().info("\n"*10+str(self._destinations[self._agv_locations[agv_num]])+"\n"*10)
             if (self._agv_locations[agv_num] == destination):
                 self.get_logger().info(f'Moved AGV{agv_num} to {self._destinations[destination]}')
                 return True
