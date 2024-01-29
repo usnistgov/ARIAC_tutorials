@@ -1243,14 +1243,12 @@ class CompetitionInterface(Node):
             if self.display_bounding_boxes:            
                 ros_img = self._bridge.cv2_to_imgmsg(cv_img, "bgr8")
                 self.display_bounding_boxes_pub.publish(ros_img)
-                cv2.imshow("display_bounding_boxes", cv_img)
-                cv2.waitKey(1000)
 
             # print results
             return self.output_by_slot()
 
         else:
-            self.get_logger().info("No image received yet")
+            # Images are not received, return None
             return None
 
     def find_parts(self, img):
