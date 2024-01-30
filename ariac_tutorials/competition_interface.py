@@ -1336,7 +1336,6 @@ class CompetitionInterface(Node):
         self._agv_locations[2] = msg.location
     
     def _agv3_status_cb(self, msg : AGVStatusMsg):
-        self.get_logger().info(str(msg.location))
         self._agv_locations[3] = msg.location
     
     def _agv4_status_cb(self, msg : AGVStatusMsg):
