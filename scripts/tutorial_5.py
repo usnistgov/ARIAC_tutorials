@@ -27,7 +27,7 @@ def main(args=None):
     assembly_order = interface.orders[-1]
     for agv in assembly_order.order_task.agv_numbers:
         interface.lock_agv_tray(agv)
-        interface.move_agv_to_station(agv, assembly_order.order_task.station)
+        interface.move_agv(agv, assembly_order.order_task.station)
     
     interface.end_competition()
     spin_thread.join()

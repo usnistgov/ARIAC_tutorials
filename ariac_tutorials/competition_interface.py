@@ -838,46 +838,7 @@ class CompetitionInterface(Node):
         if future.result().success:
             self.get_logger().info(f'Locked AGV{num}\'s tray')
         else:
-            self.get_logger().warn('Unable to lock tray')
-
-    def move_agv_to_station(self, num, station):
-        '''
-        Move an AGV to an assembly station.
-        Args:
-            num (int): AGV number
-            station (int): Assembly station number
-        Raises:
-            KeyboardInterrupt: Exception raised when the user presses Ctrl+C
-        '''
-
-        # Create a client to send a request to the `/ariac/move_agv` service.
-        mover = self.create_client(
-            MoveAGV,
-            f'/ariac/move_agv{num}')
-
-        # Create a request object.
-        request = MoveAGV.Request()
-
-        # Set the request location.
-        if station in [AssemblyTaskMsg.AS1, AssemblyTaskMsg.AS3]:
-            request.location = MoveAGV.Request.ASSEMBLY_FRONT
-        else:
-            request.location = MoveAGV.Request.ASSEMBLY_BACK
-
-        # Send the request.
-        future = mover.call_async(request)
-
-        # Wait for the server to respond.
-        try:
-            rclpy.spin_until_future_complete(self, future)
-        except KeyboardInterrupt as kb_error:
-            raise KeyboardInterrupt from kb_error
-
-        # Check the result of the service call.
-        if future.result().success:
-            self.get_logger().info(f'Moved AGV{num} to {self._stations[station]}')
-        else:
-            self.get_logger().warn(future.result().message)  
+            self.get_logger().warn('Unable to lock tray')  
 
     def set_floor_robot_gripper_state(self, state):
         '''Set the gripper state of the floor robot.
@@ -1375,6 +1336,7 @@ class CompetitionInterface(Node):
         self._agv_locations[2] = msg.location
     
     def _agv3_status_cb(self, msg : AGVStatusMsg):
+        self.get_logger().info(str(msg.location))
         self._agv_locations[3] = msg.location
     
     def _agv4_status_cb(self, msg : AGVStatusMsg):
@@ -1715,7 +1677,10 @@ class CompetitionInterface(Node):
         except KeyboardInterrupt as kb_error:
             raise KeyboardInterrupt from kb_error
 
-        while (self._agv_locations[agv_num] in [AGVStatusMsg.KITTING,destination,AGVStatusMsg.UNKNOWN]):
+        timeout = 22
+        start = time.time()
+
+        while (time.time() - start < timeout):
             if (self._agv_locations[agv_num] == destination):
                 self.get_logger().info(f'Moved AGV{agv_num} to {self._destinations[destination]}')
                 return True

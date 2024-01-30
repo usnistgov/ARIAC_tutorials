@@ -38,6 +38,7 @@ install(DIRECTORY
   config
   launch
   resources
+  meshes
   DESTINATION share/${PROJECT_NAME}
 )
 
