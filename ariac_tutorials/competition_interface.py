@@ -1715,7 +1715,7 @@ class CompetitionInterface(Node):
         except KeyboardInterrupt as kb_error:
             raise KeyboardInterrupt from kb_error
 
-        while (self._agv_locations[agv_num] in [AGVStatusMsg.KITTING,AGVStatusMsg.WAREHOUSE,AGVStatusMsg.UNKNOWN]):
+        while (self._agv_locations[agv_num] in [AGVStatusMsg.KITTING,destination,AGVStatusMsg.UNKNOWN]):
             if (self._agv_locations[agv_num] == destination):
                 self.get_logger().info(f'Moved AGV{agv_num} to {self._destinations[destination]}')
                 return True
