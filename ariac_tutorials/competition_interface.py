@@ -461,7 +461,7 @@ class CompetitionInterface(Node):
         self.planning_scene_msg = PlanningScene()
 
         # Meshes file path
-        self.mesh_file_path = get_package_share_directory("test_competitor") + "/meshes/"
+        self.mesh_file_path = get_package_share_directory("ariac_tutorials") + "/meshes/"
 
         
         self.floor_joint_positions_arrs = {
