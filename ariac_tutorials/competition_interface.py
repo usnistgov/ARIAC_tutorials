@@ -1314,7 +1314,8 @@ class CompetitionInterface(Node):
         self.centered_part_poses[color][type] = centered_refined_matches
 
     def output_by_slot(self):
-        bin = dict([(i, None) for i in range(1, 10)])
+        bin = dict([(i, PartMsg(color=None, type=None)) for i in range(1, 10)])
+
         for color in self.centered_part_poses.keys():
             for type in self.centered_part_poses[color].keys():
                for (csx, csy) in self.centered_part_poses[color][type]:
@@ -1337,9 +1338,6 @@ class CompetitionInterface(Node):
                         col = 2
                     
                     bin[self.slot_mapping[(row, col)]] = PartMsg(color=color, type=type)
-                    for k, v in bin.items():
-                        if v is None:
-                            bin[k] = PartMsg(color=None, type=None)
         return bin
 
     # Helper functions for part detection
@@ -1370,9 +1368,6 @@ class CompetitionInterface(Node):
            (not self.pump_template.shape[0] > 0):
             return False
         return True
-
-    def get_tray_ids(self, tray_table_number):
-        pass
 
     def _agv1_status_cb(self, msg : AGVStatusMsg):
         self._agv_locations[1] = msg.location

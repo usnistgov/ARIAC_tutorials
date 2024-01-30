@@ -27,28 +27,24 @@ def main(args=None):
     while rclpy.ok():
         try:
             bin_parts = interface.get_bin_parts(bin_number)
-            
+
             # bin_parts will be None until image processing starts
             if bin_parts is None:
                 interface.get_logger().info(f"Waiting for camera images ...")
                 sleep(1)
             else:
                 for _slot_number, _part in bin_parts.items():
-                    # Check if the bin is empty
-                    if _part is None:
-                        interface.get_logger().info(f"Bin {bin_number} is empty.")
-                        break
+                    if _part.type is None:
+                        interface.get_logger().info(f"Slot {_slot_number}: Empty")
                     else:
-                        if _part.type is None:
-                            interface.get_logger().info(f"Slot {_slot_number}: Empty")
-                        else:
-                            interface.get_logger().info(f"Slot {_slot_number}: {_part.color} {_part.type}")
+                        interface.get_logger().info(f"Slot {_slot_number}: {_part.color} {_part.type}")
 
             interface.get_logger().info(f"---")
 
         except KeyboardInterrupt:
-            
             break
+
+        sleep(0.3)
     
     interface.end_competition()
     interface.destroy_node()
