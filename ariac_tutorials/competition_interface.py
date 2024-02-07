@@ -829,10 +829,8 @@ class CompetitionInterface(Node):
         future = tray_locker.call_async(request)
 
         # Wait for the response
-        try:
-            rclpy.spin_until_future_complete(self, future)
-        except KeyboardInterrupt as kb_error:
-            raise KeyboardInterrupt from kb_error
+        while not future.done():
+            pass
 
         # Check the response
         if future.result().success:
@@ -858,10 +856,8 @@ class CompetitionInterface(Node):
 
         future = self._floor_gripper_enable.call_async(request)
 
-        try:
-            rclpy.spin_until_future_complete(self, future)
-        except KeyboardInterrupt as kb_error:
-            raise KeyboardInterrupt from kb_error
+        while not future.done():
+            pass
 
         if future.result().success:
             self.get_logger().info(f'Changed gripper state to {self._gripper_states[state]}')
@@ -881,41 +877,21 @@ class CompetitionInterface(Node):
 
         future = self._ceiling_gripper_enable.call_async(request)
 
-        try:
-            rclpy.spin_until_future_complete(self, future)
-        except KeyboardInterrupt as kb_error:
-            raise KeyboardInterrupt from kb_error
+        while not future.done():
+            pass
 
         if future.result().success:
             self.get_logger().info(f'Changed gripper state to {self._gripper_states[enable]}')
         else:
             self.get_logger().warn('Unable to change gripper state')
     
-    def wait(self, duration):
-        '''Wait for a specified duration.
-
-        Arguments:
-            duration -- Duration to wait in seconds
-
-        Raises:
-            KeyboardInterrupt: Exception raised when the user presses Ctrl+C
-        '''
-        start = self.get_clock().now()
-
-        while self.get_clock().now() <= start + Duration(seconds=duration):
-            try:
-                rclpy.spin_once(self)
-            except KeyboardInterrupt as kb_error:
-                raise KeyboardInterrupt from kb_error
-    
-    def _call_get_cartesian_path (self, waypoints : list, 
+    def _call_get_cartesian_path(self, waypoints : list, 
                                   max_velocity_scaling_factor : float, 
                                   max_acceleration_scaling_factor : float,
                                   avoid_collision : bool,
                                   robot : str):
 
         self.get_logger().info("Getting cartesian path")
-        self._ariac_robots_state.update()
 
         request = GetCartesianPath.Request()
 
@@ -924,57 +900,34 @@ class CompetitionInterface(Node):
         header.stamp = self.get_clock().now().to_msg()
 
         request.header = header
-        request.start_state = robotStateToRobotStateMsg(self._ariac_robots_state)
+        with self._planning_scene_monitor.read_write() as scene:
+            request.start_state = robotStateToRobotStateMsg(scene.current_state)
+
         if robot == "floor_robot":
             request.group_name = "floor_robot"
             request.link_name = "floor_gripper"
         else:
             request.group_name = "ceiling_robot"
             request.link_name = "ceiling_gripper"
+        
         request.waypoints = waypoints
         request.max_step = 0.1
         request.avoid_collisions = avoid_collision
         request.max_velocity_scaling_factor = max_velocity_scaling_factor
         request.max_acceleration_scaling_factor = max_acceleration_scaling_factor
-        
-        future = self.get_cartesian_path_client.call_async(request)
-        
-        rclpy.spin_until_future_complete(self, future, timeout_sec=10)
 
-        if not future.done():
-            raise Error("Timeout reached when calling move_cartesian service")
+        future = self.get_cartesian_path_client.call_async(request)
+
+        while not future.done():
+            pass
 
         result: GetCartesianPath.Response
         result = future.result()
-        
+
+        if result.fraction < 0.9:
+            self.get_logger().error("Unable to plan cartesian trajectory")
+
         return result.solution
-
-    def _call_get_position_fk (self):
-
-        request = GetPositionFK.Request()
-
-
-        header = Header()
-        header.frame_id = "world"
-        header.stamp = self.get_clock().now().to_msg()
-        request.header = header
-
-
-        request.fk_link_names = ["floor_gripper"]
-        request.robot_state = robotStateToRobotStateMsg(self._ariac_robots_state)
-
-        future = self.get_position_fk_client.call_async(request)
-
-
-        rclpy.spin_until_future_complete(self, future, timeout_sec=10)
-
-        if not future.done():
-            raise Error("Timeout reached when calling get_position_fk service")
-
-        result: GetPositionFK.Response
-        result = future.result()
-
-        return result.pose_stamped[0].pose
     
     def _plan_and_execute(
         self,
@@ -1033,42 +986,36 @@ class CompetitionInterface(Node):
             self._ceiling_robot_home_quaternion = self._ariac_robots_state.get_pose("ceiling_gripper").orientation
 
     def _move_floor_robot_cartesian(self, waypoints, velocity, acceleration, avoid_collision = True):
+        trajectory_msg = self._call_get_cartesian_path(waypoints, velocity, acceleration, avoid_collision, "floor_robot")
         with self._planning_scene_monitor.read_write() as scene:
-            # instantiate a RobotState instance using the current robot model
-            self._ariac_robots_state = scene.current_state
-            # Max step
-            self._ariac_robots_state.update()
-            trajectory_msg = self._call_get_cartesian_path(waypoints, velocity, acceleration, avoid_collision, "floor_robot")
-            self._ariac_robots_state.update()
+
             trajectory = RobotTrajectory(self._ariac_robots.get_robot_model())
-            trajectory.set_robot_trajectory_msg(self._ariac_robots_state, trajectory_msg)
+            trajectory.set_robot_trajectory_msg(scene.current_state, trajectory_msg)
             trajectory.joint_model_group_name = "floor_robot"
-        self._ariac_robots_state.update(True)
+            scene.current_state.update(True)
+            self._ariac_robots_state = scene.current_state
+
         self._ariac_robots.execute(trajectory, controllers=[])
 
     def _move_floor_robot_to_pose(self,pose : Pose):
-        self.get_logger().info(str(pose))
         with self._planning_scene_monitor.read_write() as scene:
             self._floor_robot.set_start_state(robot_state = scene.current_state)
 
             pose_goal = PoseStamped()
             pose_goal.header.frame_id = "world"
             pose_goal.pose = pose
-            self.get_logger().info(str(pose_goal.pose))
             self._floor_robot.set_goal_state(pose_stamped_msg=pose_goal, pose_link="floor_gripper")
         
         while not self._plan_and_execute(self._ariac_robots, self._floor_robot, self.get_logger(), "floor_robot"):
             pass
     
     def _move_ceiling_robot_to_pose(self, pose: Pose):
-        self.get_logger().info(str(pose))
         with self._planning_scene_monitor.read_write() as scene:
             self._ceiling_robot.set_start_state(robot_state = scene.current_state)
 
             pose_goal = PoseStamped()
             pose_goal.header.frame_id = "world"
             pose_goal.pose = pose
-            self.get_logger().info(str(pose_goal.pose))
             self._ceiling_robot.set_goal_state(pose_stamped_msg=pose_goal, pose_link="ceiling_gripper")
         
         while not self._plan_and_execute(self._ariac_robots, self._ceiling_robot, self.get_logger(), "ceiling_robot"):
@@ -1342,7 +1289,6 @@ class CompetitionInterface(Node):
     def _floor_robot_wait_for_attach(self,timeout : float, orientation : Quaternion):
         with self._planning_scene_monitor.read_write() as scene:
             current_pose = scene.current_state.get_pose("floor_gripper")
-        self.get_logger().info("Got current pose")
         start_time = time.time()
         while not self._floor_robot_gripper_state.attached:
             current_pose=build_pose(current_pose.position.x, current_pose.position.y,
@@ -1439,7 +1385,6 @@ class CompetitionInterface(Node):
             self.current_order = copy(self._orders[0])
             self.current_order : Order
             del self._orders[0]
-            print(len(self._orders))
             if self.current_order.order_type == OrderMsg.KITTING:
                 self._complete_kitting_order(self.current_order.order_task)
                 self.submit_order(self.current_order.order_id)
@@ -1605,7 +1550,8 @@ class CompetitionInterface(Node):
         future = self._change_gripper_client.call_async(request)
 
 
-        rclpy.spin_until_future_complete(self, future, timeout_sec=10)
+        while not future.done():
+            pass
 
         if not future.done():
             raise Error("Timeout reached when calling change_gripper service")
@@ -1633,10 +1579,8 @@ class CompetitionInterface(Node):
         future = submit_order_client.call_async(request)
 
         # Wait for the response
-        try:
-            rclpy.spin_until_future_complete(self, future)
-        except KeyboardInterrupt as kb_error:
-            raise KeyboardInterrupt from kb_error
+        while not future.done():
+            pass
 
         # Check the response
         if future.result().success:
@@ -1669,10 +1613,8 @@ class CompetitionInterface(Node):
         future = mover.call_async(request)
 
         # Wait for the server to respond.
-        try:
-            rclpy.spin_until_future_complete(self, future)
-        except KeyboardInterrupt as kb_error:
-            raise KeyboardInterrupt from kb_error
+        while not future.done():
+            pass
 
         timeout = 22
         start = time.time()
@@ -1734,10 +1676,8 @@ class CompetitionInterface(Node):
         future = apply_planning_scene_client.call_async(request)
 
         # Wait for the server to respond.
-        try:
-            rclpy.spin_until_future_complete(self, future)
-        except KeyboardInterrupt as kb_error:
-            raise KeyboardInterrupt from kb_error
+        while not future.done():
+            pass
 
         # Check the result of the service call.
         if future.result().success:
